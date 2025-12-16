@@ -1,0 +1,550 @@
+-- FULL RESET + SETUP (Warehouse + Bosch + TDK + Mathma Nagar) + QUEUE
+
+-- 0) DROP (wipe everything)
+DROP TABLE IF EXISTS public.stock_transfer_items CASCADE;
+DROP TABLE IF EXISTS public.stock_transfers CASCADE;
+
+DROP TABLE IF EXISTS public.transactions CASCADE;
+DROP TABLE IF EXISTS public.stock CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
+
+DROP FUNCTION IF EXISTS public.upsert_warehouse_stock(text, text, text, integer, text, text, text) CASCADE;
+DROP FUNCTION IF EXISTS public.move_stock_warehouse_to_org(text, text, text, text, integer, text, text) CASCADE;
+
+DROP FUNCTION IF EXISTS public.create_stock_transfer(text, text, jsonb, text, text, text) CASCADE;
+DROP FUNCTION IF EXISTS public.accept_stock_transfer(bigint, text, text) CASCADE;
+DROP FUNCTION IF EXISTS public.reject_stock_transfer(bigint, text, text) CASCADE;
+
+-- 1) TABLES
+CREATE TABLE public.users (
+  id BIGSERIAL PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  name TEXT NOT NULL,
+  organization TEXT NOT NULL DEFAULT 'Warehouse',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE public.stock (
+  id BIGSERIAL PRIMARY KEY,
+  organization TEXT NOT NULL,
+  size TEXT NOT NULL,
+  category TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (organization, size, category)
+);
+
+-- IMPORTANT: size validation (34 is only for kids, not adults)
+ALTER TABLE public.stock
+ADD CONSTRAINT stock_size_category_check
+CHECK (
+  (category = 'kids' AND size IN ('26','28','30','32','34'))
+  OR
+  (category = 'adults' AND size IN ('36','38','40','42','44','46'))
+);
+
+CREATE TABLE public.transactions (
+  id BIGSERIAL PRIMARY KEY,
+  organization TEXT NOT NULL,
+  category TEXT NOT NULL,
+  size TEXT NOT NULL,
+  quantity INTEGER NOT NULL CHECK (quantity >= 0),
+  type TEXT NOT NULL CHECK (type IN ('in', 'out')),
+  reason TEXT,
+  user_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 1B) QUEUE TABLES
+CREATE TABLE public.stock_transfers (
+  id BIGSERIAL PRIMARY KEY,
+  from_org TEXT NOT NULL,
+  to_org TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','rejected')),
+  reason TEXT,
+  created_by_name TEXT,
+  created_by_username TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  decided_at TIMESTAMPTZ,
+  decided_by_name TEXT,
+  decided_by_username TEXT,
+  reject_note TEXT
+);
+
+CREATE TABLE public.stock_transfer_items (
+  id BIGSERIAL PRIMARY KEY,
+  transfer_id BIGINT NOT NULL REFERENCES public.stock_transfers(id) ON DELETE CASCADE,
+  category TEXT NOT NULL CHECK (category IN ('kids','adults')),
+  size TEXT NOT NULL,
+  quantity INTEGER NOT NULL CHECK (quantity > 0)
+);
+
+ALTER TABLE public.stock_transfer_items
+ADD CONSTRAINT stock_transfer_items_size_check
+CHECK (
+  (category = 'kids' AND size IN ('26','28','30','32','34'))
+  OR
+  (category = 'adults' AND size IN ('36','38','40','42','44','46'))
+);
+
+-- 2) RLS + POLICIES (anon allowed - NOT secure for production)
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stock ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stock_transfers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stock_transfer_items ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anon read users" ON public.users;
+DROP POLICY IF EXISTS "Anon full stock" ON public.stock;
+DROP POLICY IF EXISTS "Anon full transactions" ON public.transactions;
+DROP POLICY IF EXISTS "Anon full stock_transfers" ON public.stock_transfers;
+DROP POLICY IF EXISTS "Anon full stock_transfer_items" ON public.stock_transfer_items;
+
+CREATE POLICY "Anon read users"
+ON public.users
+FOR SELECT
+TO anon
+USING (true);
+
+CREATE POLICY "Anon full stock"
+ON public.stock
+FOR ALL
+TO anon
+USING (true)
+WITH CHECK (true);
+
+CREATE POLICY "Anon full transactions"
+ON public.transactions
+FOR ALL
+TO anon
+USING (true)
+WITH CHECK (true);
+
+CREATE POLICY "Anon full stock_transfers"
+ON public.stock_transfers
+FOR ALL
+TO anon
+USING (true)
+WITH CHECK (true);
+
+CREATE POLICY "Anon full stock_transfer_items"
+ON public.stock_transfer_items
+FOR ALL
+TO anon
+USING (true)
+WITH CHECK (true);
+
+-- 3) GRANTS
+GRANT USAGE ON SCHEMA public TO anon;
+
+GRANT SELECT ON TABLE public.users TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.stock TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.transactions TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.stock_transfers TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.stock_transfer_items TO anon;
+
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO anon;
+
+-- 4) SEED USERS
+INSERT INTO public.users (username, password, name, organization) VALUES
+  ('warehouse', 'warehouse123', 'Warehouse Manager', 'Warehouse'),
+  ('bosch',     'pass123',      'Bosch Manager',     'Bosch'),
+  ('tdk',       'pass123',      'TDK Manager',       'TDK'),
+  ('mathma',    'pass123',      'Mathma Nagar Manager', 'Mathma Nagar')
+ON CONFLICT (username) DO UPDATE
+SET password = EXCLUDED.password,
+    name = EXCLUDED.name,
+    organization = EXCLUDED.organization;
+
+-- 5) SEED STOCK ROWS
+-- WAREHOUSE
+INSERT INTO public.stock (organization, size, category, quantity) VALUES
+('Warehouse', '26', 'kids',    8),
+('Warehouse', '28', 'kids',   12),
+('Warehouse', '30', 'kids',   15),
+('Warehouse', '32', 'kids',   10),
+('Warehouse', '34', 'kids',   10),
+('Warehouse', '36', 'adults', 15),
+('Warehouse', '38', 'adults', 20),
+('Warehouse', '40', 'adults', 25),
+('Warehouse', '42', 'adults', 20),
+('Warehouse', '44', 'adults', 10),
+('Warehouse', '46', 'adults',  5)
+ON CONFLICT (organization, size, category) DO UPDATE
+SET quantity = EXCLUDED.quantity,
+    updated_at = now();
+
+-- BOSCH
+INSERT INTO public.stock (organization, size, category, quantity) VALUES
+('Bosch', '26', 'kids', 0), ('Bosch', '28', 'kids', 0), ('Bosch', '30', 'kids', 0), ('Bosch', '32', 'kids', 0),
+('Bosch', '34', 'kids', 0),
+('Bosch', '36', 'adults', 0), ('Bosch', '38', 'adults', 0), ('Bosch', '40', 'adults', 0),
+('Bosch', '42', 'adults', 0), ('Bosch', '44', 'adults', 0), ('Bosch', '46', 'adults', 0)
+ON CONFLICT (organization, size, category) DO NOTHING;
+
+-- TDK
+INSERT INTO public.stock (organization, size, category, quantity) VALUES
+('TDK', '26', 'kids', 0), ('TDK', '28', 'kids', 0), ('TDK', '30', 'kids', 0), ('TDK', '32', 'kids', 0),
+('TDK', '34', 'kids', 0),
+('TDK', '36', 'adults', 0), ('TDK', '38', 'adults', 0), ('TDK', '40', 'adults', 0),
+('TDK', '42', 'adults', 0), ('TDK', '44', 'adults', 0), ('TDK', '46', 'adults', 0)
+ON CONFLICT (organization, size, category) DO NOTHING;
+
+-- MATHMA NAGAR
+INSERT INTO public.stock (organization, size, category, quantity) VALUES
+('Mathma Nagar', '26', 'kids', 0), ('Mathma Nagar', '28', 'kids', 0), ('Mathma Nagar', '30', 'kids', 0), ('Mathma Nagar', '32', 'kids', 0),
+('Mathma Nagar', '34', 'kids', 0),
+('Mathma Nagar', '36', 'adults', 0), ('Mathma Nagar', '38', 'adults', 0), ('Mathma Nagar', '40', 'adults', 0),
+('Mathma Nagar', '42', 'adults', 0), ('Mathma Nagar', '44', 'adults', 0), ('Mathma Nagar', '46', 'adults', 0)
+ON CONFLICT (organization, size, category) DO NOTHING;
+
+-- 6) RPC: upsert_warehouse_stock (+quantity increase, -quantity decrease)
+CREATE OR REPLACE FUNCTION public.upsert_warehouse_stock(
+  p_organization text,
+  p_category text,
+  p_size text,
+  p_quantity integer,
+  p_type text,
+  p_user_name text,
+  p_reason text DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_current_qty integer;
+  v_new_qty integer;
+BEGIN
+  IF p_type NOT IN ('in','out') THEN
+    RAISE EXCEPTION 'Invalid type: %', p_type;
+  END IF;
+
+  IF p_organization IS NULL OR p_organization = '' THEN
+    RAISE EXCEPTION 'organization required';
+  END IF;
+
+  IF p_category IS NULL OR p_category = '' THEN
+    RAISE EXCEPTION 'category required';
+  END IF;
+
+  IF p_size IS NULL OR p_size = '' THEN
+    RAISE EXCEPTION 'size required';
+  END IF;
+
+  IF p_quantity IS NULL OR p_quantity = 0 THEN
+    RAISE EXCEPTION 'quantity cannot be 0';
+  END IF;
+
+  INSERT INTO public.stock (organization, category, size, quantity)
+  VALUES (p_organization, p_category, p_size, 0)
+  ON CONFLICT (organization, size, category) DO NOTHING;
+
+  SELECT quantity
+    INTO v_current_qty
+  FROM public.stock
+  WHERE organization = p_organization
+    AND category = p_category
+    AND size = p_size
+  FOR UPDATE;
+
+  v_new_qty := v_current_qty + p_quantity;
+
+  IF v_new_qty < 0 THEN
+    RAISE EXCEPTION 'Insufficient stock in % (have %, change %)', p_organization, v_current_qty, p_quantity;
+  END IF;
+
+  UPDATE public.stock
+  SET quantity = v_new_qty,
+      updated_at = now()
+  WHERE organization = p_organization
+    AND category = p_category
+    AND size = p_size;
+
+  INSERT INTO public.transactions (organization, category, size, quantity, type, reason, user_name)
+  VALUES (p_organization, p_category, p_size, ABS(p_quantity), p_type, p_reason, p_user_name);
+END;
+$$;
+
+-- 7) RPC: move_stock_warehouse_to_org (direct immediate transfer; one side MUST be Warehouse)
+CREATE OR REPLACE FUNCTION public.move_stock_warehouse_to_org(
+  p_from_org text,
+  p_to_org   text,
+  p_category text,
+  p_size     text,
+  p_quantity integer,
+  p_user_name text,
+  p_reason text DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_from_qty integer;
+BEGIN
+  IF p_quantity IS NULL OR p_quantity <= 0 THEN
+    RAISE EXCEPTION 'Quantity must be > 0';
+  END IF;
+
+  IF p_from_org IS NULL OR p_from_org = '' THEN
+    RAISE EXCEPTION 'from_org required';
+  END IF;
+
+  IF p_to_org IS NULL OR p_to_org = '' THEN
+    RAISE EXCEPTION 'to_org required';
+  END IF;
+
+  IF p_from_org = p_to_org THEN
+    RAISE EXCEPTION 'from_org and to_org cannot be same';
+  END IF;
+
+  IF p_from_org <> 'Warehouse' AND p_to_org <> 'Warehouse' THEN
+    RAISE EXCEPTION 'Only Warehouse transfers allowed (got % -> %)', p_from_org, p_to_org;
+  END IF;
+
+  SELECT quantity
+    INTO v_from_qty
+  FROM public.stock
+  WHERE organization = p_from_org
+    AND category = p_category
+    AND size = p_size
+  FOR UPDATE;
+
+  IF v_from_qty IS NULL THEN
+    RAISE EXCEPTION 'Stock row not found in from_org=%', p_from_org;
+  END IF;
+
+  IF v_from_qty < p_quantity THEN
+    RAISE EXCEPTION 'Insufficient stock in % (have %, need %)', p_from_org, v_from_qty, p_quantity;
+  END IF;
+
+  INSERT INTO public.stock (organization, category, size, quantity)
+  VALUES (p_to_org, p_category, p_size, 0)
+  ON CONFLICT (organization, size, category) DO NOTHING;
+
+  UPDATE public.stock
+  SET quantity = quantity - p_quantity,
+      updated_at = now()
+  WHERE organization = p_from_org
+    AND category = p_category
+    AND size = p_size;
+
+  UPDATE public.stock
+  SET quantity = quantity + p_quantity,
+      updated_at = now()
+  WHERE organization = p_to_org
+    AND category = p_category
+    AND size = p_size;
+
+  INSERT INTO public.transactions (organization, category, size, quantity, type, reason, user_name)
+  VALUES (p_from_org, p_category, p_size, p_quantity, 'out', p_reason, p_user_name);
+
+  INSERT INTO public.transactions (organization, category, size, quantity, type, reason, user_name)
+  VALUES (p_to_org, p_category, p_size, p_quantity, 'in', p_reason, p_user_name);
+END;
+$$;
+
+-- 8) QUEUE RPC: create transfer (Warehouse -> Org) as pending
+CREATE OR REPLACE FUNCTION public.create_stock_transfer(
+  p_from_org text,
+  p_to_org text,
+  p_items jsonb,
+  p_reason text,
+  p_created_by_name text,
+  p_created_by_username text
+)
+RETURNS bigint
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_transfer_id bigint;
+  v_item jsonb;
+  v_cat text;
+  v_size text;
+  v_qty int;
+  v_from_qty int;
+BEGIN
+  IF p_from_org IS NULL OR p_from_org = '' OR p_to_org IS NULL OR p_to_org = '' THEN
+    RAISE EXCEPTION 'from_org and to_org required';
+  END IF;
+
+  IF p_from_org <> 'Warehouse' THEN
+    RAISE EXCEPTION 'Only Warehouse can create transfer requests';
+  END IF;
+
+  IF p_from_org = p_to_org THEN
+    RAISE EXCEPTION 'from_org and to_org cannot be same';
+  END IF;
+
+  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+    RAISE EXCEPTION 'items required';
+  END IF;
+
+  INSERT INTO public.stock_transfers(from_org,to_org,status,reason,created_by_name,created_by_username)
+  VALUES (p_from_org,p_to_org,'pending',p_reason,p_created_by_name,p_created_by_username)
+  RETURNING id INTO v_transfer_id;
+
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
+    v_cat := COALESCE(v_item->>'category','');
+    v_size := COALESCE(v_item->>'size','');
+    v_qty := COALESCE((v_item->>'quantity')::int, 0);
+
+    IF v_cat NOT IN ('kids','adults') THEN
+      RAISE EXCEPTION 'Invalid category %', v_cat;
+    END IF;
+
+    IF v_qty <= 0 THEN
+      RAISE EXCEPTION 'Invalid quantity %', v_qty;
+    END IF;
+
+    SELECT quantity INTO v_from_qty
+    FROM public.stock
+    WHERE organization = p_from_org AND category = v_cat AND size = v_size
+    FOR UPDATE;
+
+    IF v_from_qty IS NULL THEN
+      RAISE EXCEPTION 'Stock row missing in Warehouse for % %', v_cat, v_size;
+    END IF;
+
+    IF v_from_qty < v_qty THEN
+      RAISE EXCEPTION 'Insufficient stock in Warehouse for % % (have %, need %)', v_cat, v_size, v_from_qty, v_qty;
+    END IF;
+
+    INSERT INTO public.stock_transfer_items(transfer_id, category, size, quantity)
+    VALUES (v_transfer_id, v_cat, v_size, v_qty);
+  END LOOP;
+
+  RETURN v_transfer_id;
+END;
+$$;
+
+-- 9) QUEUE RPC: accept transfer (deduct Warehouse, add to destination)
+CREATE OR REPLACE FUNCTION public.accept_stock_transfer(
+  p_transfer_id bigint,
+  p_decided_by_name text,
+  p_decided_by_username text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_from_org text;
+  v_to_org text;
+  v_status text;
+  r record;
+  v_from_qty int;
+BEGIN
+  IF p_transfer_id IS NULL THEN
+    RAISE EXCEPTION 'transfer_id required';
+  END IF;
+
+  SELECT from_org, to_org, status
+    INTO v_from_org, v_to_org, v_status
+  FROM public.stock_transfers
+  WHERE id = p_transfer_id
+  FOR UPDATE;
+
+  IF v_status IS NULL THEN
+    RAISE EXCEPTION 'Transfer not found';
+  END IF;
+
+  IF v_status <> 'pending' THEN
+    RAISE EXCEPTION 'Transfer is not pending (status=%)', v_status;
+  END IF;
+
+  FOR r IN
+    SELECT category, size, quantity FROM public.stock_transfer_items WHERE transfer_id = p_transfer_id
+  LOOP
+    SELECT quantity INTO v_from_qty
+    FROM public.stock
+    WHERE organization = v_from_org AND category = r.category AND size = r.size
+    FOR UPDATE;
+
+    IF v_from_qty < r.quantity THEN
+      RAISE EXCEPTION 'Insufficient stock at accept time for % % (have %, need %)', r.category, r.size, v_from_qty, r.quantity;
+    END IF;
+
+    INSERT INTO public.stock (organization, category, size, quantity)
+    VALUES (v_to_org, r.category, r.size, 0)
+    ON CONFLICT (organization, size, category) DO NOTHING;
+
+    UPDATE public.stock
+    SET quantity = quantity - r.quantity,
+        updated_at = now()
+    WHERE organization = v_from_org AND category = r.category AND size = r.size;
+
+    UPDATE public.stock
+    SET quantity = quantity + r.quantity,
+        updated_at = now()
+    WHERE organization = v_to_org AND category = r.category AND size = r.size;
+
+    INSERT INTO public.transactions (organization, category, size, quantity, type, reason, user_name)
+    VALUES (v_from_org, r.category, r.size, r.quantity, 'out', 'Sent to Organization (Queue)', p_decided_by_name);
+
+    INSERT INTO public.transactions (organization, category, size, quantity, type, reason, user_name)
+    VALUES (v_to_org, r.category, r.size, r.quantity, 'in', 'Received from Warehouse (Queue)', p_decided_by_name);
+  END LOOP;
+
+  UPDATE public.stock_transfers
+  SET status = 'accepted',
+      decided_at = now(),
+      decided_by_name = p_decided_by_name,
+      decided_by_username = p_decided_by_username
+  WHERE id = p_transfer_id;
+END;
+$$;
+
+-- 10) QUEUE RPC: reject transfer (no stock movement)
+CREATE OR REPLACE FUNCTION public.reject_stock_transfer(
+  p_transfer_id bigint,
+  p_reject_note text,
+  p_decided_by_name text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_status text;
+BEGIN
+  SELECT status INTO v_status
+  FROM public.stock_transfers
+  WHERE id = p_transfer_id
+  FOR UPDATE;
+
+  IF v_status IS NULL THEN
+    RAISE EXCEPTION 'Transfer not found';
+  END IF;
+
+  IF v_status <> 'pending' THEN
+    RAISE EXCEPTION 'Transfer is not pending (status=%)', v_status;
+  END IF;
+
+  UPDATE public.stock_transfers
+  SET status = 'rejected',
+      decided_at = now(),
+      decided_by_name = p_decided_by_name,
+      reject_note = p_reject_note
+  WHERE id = p_transfer_id;
+END;
+$$;
+
+-- Allow anon frontend to call RPCs
+GRANT EXECUTE ON FUNCTION public.upsert_warehouse_stock(text, text, text, integer, text, text, text) TO anon;
+GRANT EXECUTE ON FUNCTION public.move_stock_warehouse_to_org(text, text, text, text, integer, text, text) TO anon;
+
+GRANT EXECUTE ON FUNCTION public.create_stock_transfer(text, text, jsonb, text, text, text) TO anon;
+GRANT EXECUTE ON FUNCTION public.accept_stock_transfer(bigint, text, text) TO anon;
+GRANT EXECUTE ON FUNCTION public.reject_stock_transfer(bigint, text, text) TO anon;
+
+-- Refresh PostgREST schema cache
+NOTIFY pgrst, 'reload schema';
