@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Bosch T‑Shirt Inventory</title>
+
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg0:#f6f7fb;
+  --bg1:#ffffff;
+
+  --ink:#0f172a;
+  --muted:#64748b;
+
+  --line:rgba(15,23,42,.10);
+  --line2:rgba(15,23,42,.08);
+
+  --primary1:#2563eb;
+  --primary2:#06b6d4;
+
+  --good1:#22c55e;
+  --good2:#14b8a6;
+
+  --bad1:#ef4444;
+  --bad2:#f97316;
+
+  --card:rgba(255,255,255,.78);
+  --card-strong:rgba(255,255,255,.92);
+
+  --shadow:0 10px 30px rgba(2,6,23,.08);
+  --shadow2:0 6px 16px rgba(2,6,23,.08);
+}
+
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial;
+  color:var(--ink);
+  background:
+    radial-gradient(900px 500px at 10% 0%, rgba(37,99,235,.16), transparent 60%),
+    radial-gradient(900px 500px at 90% 10%, rgba(6,182,212,.14), transparent 60%),
+    linear-gradient(180deg, var(--bg0), #fff 55%, var(--bg0));
+  overflow-x:hidden;
+}
+
+/* ====== LOGIN ====== */
+.login-container{
+  display:flex;justify-content:center;align-items:center;
+  min-height:100vh;padding:18px;
+}
+.login-box{
+  width:100%;max-width:430px;
+  background:var(--card);
+  border:1px solid rgba(37,99,235,.20);
+  box-shadow:var(--shadow);
+  border-radius:24px;
+  backdrop-filter: blur(16px);
+  padding:28px 22px;
+  position:relative;
+}
+.login-box::before{
+  content:"";
+  position:absolute;inset:0;
+  border-radius:24px;
+  background:linear-gradient(135deg, rgba(37,99,235,.10), rgba(6,182,212,.08));
+  pointer-events:none;
+}
+.login-box > *{position:relative}
+
+/* Logo in login (no boundary line) */
+.login-logo{
+  width:180px;
+  height:150px;
+  margin:0 auto 1px;
+  border-radius:0px;
+  overflow:hidden;
+  background:transparent;
+  border:none;
+  box-shadow:none;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.login-logo img{
+  max-width:112%;
+  max-height:110%;
+  object-fit:contain;
+  display:block;
+}
+
+.login-box h2{
+  margin:0 0 8px;
+  text-align:center;
+  font-size: clamp(20px, 4vw, 28px);
+  font-weight: 900;
+  letter-spacing:-0.02em;
+}
+.login-box .app-tag{
+  text-align:center;
+  color:var(--primary1);
+  font-size:12px;
+  font-weight:800;
+  margin:0 auto 18px;
+  padding:9px 12px;
+  border-radius:999px;
+  background:rgba(37,99,235,.08);
+  border:1px solid rgba(37,99,235,.18);
+  width:fit-content;
+}
+.login-box input{
+  width:100%;
+  padding:14px 14px;
+  margin:10px 0;
+  border-radius:14px;
+  border:1.6px solid rgba(15,23,42,.16);
+  background:rgba(255,255,255,.95);
+  font-size:15px;
+  font-weight:650;
+  outline:none;
+  transition:.15s;
+}
+.login-box input:focus{
+  border-color: rgba(37,99,235,.60);
+  box-shadow:0 0 0 4px rgba(37,99,235,.14);
+}
+.login-box button{
+  width:100%;
+  border:none;
+  margin-top:10px;
+  padding:14px 16px;
+  border-radius:16px;
+  color:#fff;
+  font-weight:900;
+  font-size:15px;
+  cursor:pointer;
+
+  background-color:#ef4444;
+  box-shadow:0 12px 26px rgba(239,68,68,.28);
+  transition:transform .12s, background-color .12s;
+}
+.login-box button:hover{
+  background-color:#dc2626;
+}
+.login-box button:active{
+  transform:translateY(1px);
+}
+
+.error-message{
+  display:none;
+  margin-top:10px;
+  padding:10px 12px;
+  border-radius:14px;
+  font-size:13px;
+  font-weight:800;
+  color:#991b1b;
+  background:rgba(239,68,68,.10);
+  border:1px solid rgba(239,68,68,.22);
+}
+
+/* ====== APP ====== */
+.main-app{display:none;max-width:100vw}
+
+/* Sticky header */
+.header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(255,255,255,.82);
+  backdrop-filter: blur(16px);
+  border-bottom:1px solid var(--line2);
+  padding:12px 12px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+
+/* Logo slot (bigger logo, no border lines) */
+.brand-wrap{display:flex;align-items:center;gap:10px}
+.logo-slot{
+  width:50px;
+  height:50px;
+  overflow:hidden;
+  background:transparent;
+  border:none;
+  box-shadow:none;
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.logo-slot img{
+  width:95%;
+  height:100%;
+  object-fit:contain;
+  display:block;
+}
+
+.header h1{
+  margin:0;
+  font-size: clamp(16px, 2.8vw, 20px);
+  font-weight: 950;
+  letter-spacing:-0.02em;
+}
+.user-info{
+  margin-top:3px;
+  font-size:11px;
+  font-weight:750;
+  color:var(--muted);
+}
+
+/* Toggle area */
+.switch-container{display:flex;gap:12px;align-items:center}
+.mode-box{display:flex;flex-direction:column;align-items:center;gap:6px}
+
+/* ====== TOGGLE ====== */
+.switch{
+  --pad: 4px;
+  --thumb: 24px;
+
+  position:relative;
+  width:64px;height:32px;
+  border-radius:999px;
+  overflow:hidden;
+
+  background:rgba(15,23,42,.08);
+  border:1px solid rgba(15,23,42,.10);
+  box-shadow: inset 0 1px 2px rgba(2,6,23,.10);
+
+  -webkit-clip-path: inset(0 round 999px);
+  clip-path: inset(0 round 999px);
+}
+.slider{
+  position:absolute;
+  inset:0;
+  border-radius:999px;
+  cursor:pointer;
+  transition:background .18s;
+}
+.slider:before{
+  content:"";
+  position:absolute;
+  width:var(--thumb);
+  height:var(--thumb);
+  top:50%;
+  left: var(--pad);
+  transform: translateY(-50%);
+  border-radius:999px;
+  background:rgba(255,255,255,.96);
+  box-shadow:0 6px 14px rgba(2,6,23,.18);
+  transition:left .18s;
+}
+.slider.neutral{background:rgba(15,23,42,.08)}
+.slider.out{background:linear-gradient(135deg, rgba(239,68,68,.28), rgba(249,115,22,.22))}
+.slider.in{background:linear-gradient(135deg, rgba(34,197,94,.28), rgba(20,184,166,.22))}
+.slider.out:before{ left: var(--pad); }
+.slider.neutral:before{ left: calc(var(--pad) + (100% - var(--thumb) - (2 * var(--pad))) / 2); }
+.slider.in:before{ left: calc(100% - var(--thumb) - var(--pad)); }
+
+.switch-label{
+  font-size:11px;
+  font-weight:950;
+  letter-spacing:.10em;
+  color:rgba(15,23,42,.70);
+}
+
+/* Header buttons */
+.action-buttons{display:flex;flex-direction:column;gap:7px}
+.btn{
+  border:none;border-radius:999px;
+  padding:8px 14px;
+  font-size:11px;font-weight:950;
+  cursor:pointer;
+  box-shadow:var(--shadow2);
+}
+.refresh-btn{background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff}
+.logout-btn{background:linear-gradient(135deg,#ef4444,#f97316);color:#fff}
+
+/* Warning */
+.warning-banner{
+  margin:10px 10px 0;
+  padding:12px 12px;
+  border-radius:16px;
+  font-size:13px;font-weight:900;
+  color:#92400e;
+  background:rgba(250,204,21,.18);
+  border:1px solid rgba(250,204,21,.26);
+  display:none;
+}
+
+/* Stock display */
+.current-stock-display{
+  margin:10px 10px 6px;
+  padding:10px;
+  border-radius:18px;
+  background:var(--card);
+  border:1px solid rgba(37,99,235,.14);
+  box-shadow:var(--shadow2);
+  backdrop-filter: blur(14px);
+}
+.stock-row{display:flex;gap:8px;flex-wrap:nowrap}
+.stock-box{
+  flex:1 1 0; min-width:0;
+  border-radius:16px;
+  padding:10px 8px;
+  background:rgba(255,255,255,.86);
+  border:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.stock-label{
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.10em;
+  text-transform:uppercase;
+  color:rgba(100,116,139,.95);
+  white-space:nowrap;
+}
+.stock-value{
+  margin-top:4px;
+  font-size: clamp(14px, 4vw, 18px);
+  font-weight: 950;
+  color:rgba(15,23,42,.95);
+}
+
+/* Mode banner */
+.action-display{
+  margin:8px 10px 10px;
+  padding:12px 12px;
+  border-radius:16px;
+  background:rgba(255,255,255,.90);
+  border:1px solid var(--line);
+  box-shadow:var(--shadow2);
+  font-weight:950;
+  font-size:13px;
+  display:none;
+}
+
+/* Sections */
+.section{
+  margin:10px 10px;
+  padding:14px 12px;
+  border-radius:18px;
+  background:var(--card);
+  border:1px solid rgba(15,23,42,.08);
+  box-shadow:var(--shadow2);
+  backdrop-filter: blur(14px);
+}
+.section-header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.section-header h3{
+  margin:0;
+  font-size: clamp(14px, 3.3vw, 16px);
+  font-weight: 950;
+  letter-spacing:-0.01em;
+}
+
+/* Single add-to-cart button */
+.add-all-btn{
+  border:none;
+  padding:9px 14px;
+  border-radius:999px;
+  font-weight:950;
+  font-size:12px;
+  cursor:pointer;
+  color:#fff;
+  background:linear-gradient(135deg,var(--primary1),var(--primary2));
+  box-shadow:0 10px 22px rgba(37,99,235,.18);
+}
+.add-all-btn:disabled{
+  background:rgba(100,116,139,.45);
+  cursor:not-allowed;
+  box-shadow:none;
+}
+
+/* Sizes horizontal */
+.size-row,.kids-scroll{display:flex;gap:12px;overflow-x:auto;padding:10px 2px 6px;-webkit-overflow-scrolling:touch}
+.size-row::-webkit-scrollbar,.kids-scroll::-webkit-scrollbar{height:6px}
+.size-row::-webkit-scrollbar-thumb,.kids-scroll::-webkit-scrollbar-thumb{
+  background:rgba(15,23,42,.18);
+  border-radius:999px;
+}
+.size-item{flex:none;display:flex;flex-direction:column;align-items:center;gap:7px}
+
+.size-btn,.kids-box{
+  width:56px;height:56px;
+  border-radius:18px;
+  border:1px solid rgba(15,23,42,.10);
+  background:rgba(255,255,255,.90);
+  box-shadow:0 10px 18px rgba(2,6,23,.06);
+  font-size:14px;
+  font-weight:950;
+  cursor:pointer;
+}
+.size-btn.mode-in,.kids-box.mode-in{
+  color:#fff;
+  border-color: rgba(34,197,94,.25);
+  background:linear-gradient(135deg,var(--good1),var(--good2));
+}
+.size-btn.mode-out,.kids-box.mode-out{
+  color:#fff;
+  border-color: rgba(239,68,68,.25);
+  background:linear-gradient(135deg,var(--bad1),var(--bad2));
+}
+
+.qty-input{
+  width:56px;
+  padding:7px 8px;
+  border-radius:14px;
+  border:1.6px solid rgba(15,23,42,.14);
+  background:rgba(255,255,255,.92);
+  font-size:14px;
+  font-weight:900;
+  text-align:center;
+  outline:none;
+}
+.qty-input:focus{
+  border-color: rgba(37,99,235,.55);
+  box-shadow:0 0 0 4px rgba(37,99,235,.12);
+}
+
+/* Available label (small under input) */
+.available-qty{
+  font-size:11px;
+  font-weight:850;
+  color:rgba(100,116,139,.88);
+  text-align:center;
+  margin-top:2px;
+}
+
+/* Reason section */
+.reason-section{
+  margin:10px 10px 14px;
+  padding:14px 12px;
+  border-radius:18px;
+  background:var(--card);
+  border:1px solid rgba(15,23,42,.08);
+  box-shadow:var(--shadow2);
+  backdrop-filter: blur(14px);
+  display:none;
+}
+.reason-section h3{
+  margin:0 0 10px;
+  font-size:15px;
+  font-weight:950;
+}
+.reason-section select,
+.reason-section input{
+  width:100%;
+  padding:12px 12px;
+  border-radius:14px;
+  border:1.6px solid rgba(15,23,42,.14);
+  background:rgba(255,255,255,.92);
+  font-size:13px;
+  font-weight:900;
+  outline:none;
+  margin-top:10px;
+}
+.reason-section select:focus,
+.reason-section input:focus{
+  border-color: rgba(37,99,235,.55);
+  box-shadow:0 0 0 4px rgba(37,99,235,.12);
+}
+
+/* Confirm Queue panel */
+.queue-panel{
+  margin:10px 10px;
+  padding:14px 12px;
+  border-radius:18px;
+  background:var(--card);
+  border:1px solid rgba(15,23,42,.08);
+  box-shadow:var(--shadow2);
+  backdrop-filter: blur(14px);
+}
+.queue-panel h3{
+  margin:0 0 10px;
+  font-size: clamp(15px, 3.4vw, 17px);
+  font-weight: 950;
+}
+.queue-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+.queue-card{
+  background:rgba(255,255,255,.88);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:12px 12px;
+  box-shadow:0 8px 18px rgba(2,6,23,.05);
+}
+.queue-meta{
+  display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  font-size:12px;font-weight:900;color:rgba(15,23,42,.78);
+  margin-bottom:8px;
+}
+.queue-table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0 6px;
+  font-size:13px;
+  font-weight:850;
+  color:rgba(15,23,42,.86);
+}
+.queue-table td{
+  padding:6px 8px;
+  background:rgba(255,255,255,.78);
+  border:1px solid rgba(15,23,42,.08);
+}
+.queue-table td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+.queue-table td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px;text-align:right}
+.queue-total{
+  margin-top:8px;
+  font-size:13px;font-weight:950;
+  color:rgba(15,23,42,.86);
+}
+.queue-actions{
+  margin-top:10px;
+  display:flex;gap:10px;flex-wrap:wrap;
+}
+.queue-btn{
+  border:none;border-radius:999px;
+  padding:10px 14px;
+  font-size:12px;font-weight:950;
+  cursor:pointer;
+  color:#fff;
+  box-shadow:0 10px 18px rgba(2,6,23,.10);
+}
+.queue-accept{background:linear-gradient(135deg,#22c55e,#14b8a6)}
+.queue-reject{background:linear-gradient(135deg,#ef4444,#f97316)}
+.queue-empty{
+  text-align:center;
+  color:rgba(100,116,139,.85);
+  font-weight:900;
+  padding:18px 0;
+  border:1px dashed rgba(15,23,42,.16);
+  background:rgba(255,255,255,.70);
+  border-radius:16px;
+}
+
+/* Reject modal */
+.modal-overlay{
+  position:fixed; inset:0;
+  display:none;
+  align-items:center; justify-content:center;
+  z-index:9999;
+  background:rgba(255,255,255,.55);
+  backdrop-filter: blur(10px);
+}
+.modal{
+  width:min(420px, calc(100% - 28px));
+  border-radius:20px;
+  background:rgba(255,255,255,.92);
+  border:1px solid rgba(15,23,42,.10);
+  box-shadow:0 18px 45px rgba(2,6,23,.14);
+  padding:16px 14px;
+}
+.modal h4{margin:0 0 8px;font-size:16px;font-weight:950}
+.modal p{margin:0 0 10px;font-size:12px;font-weight:800;color:rgba(100,116,139,.95)}
+.modal textarea{
+  width:100%;
+  min-height:92px;
+  resize:none;
+  padding:12px 12px;
+  border-radius:14px;
+  border:1.6px solid rgba(15,23,42,.14);
+  background:rgba(255,255,255,.95);
+  font-size:13px;
+  font-weight:850;
+  outline:none;
+}
+.modal textarea:focus{
+  border-color: rgba(37,99,235,.55);
+  box-shadow:0 0 0 4px rgba(37,99,235,.12);
+}
+.modal-actions{display:flex;gap:10px;margin-top:12px}
+.modal-actions button{
+  flex:1;
+  border:none;border-radius:14px;
+  padding:12px 12px;
+  font-size:13px;font-weight:950;
+  cursor:pointer;
+  color:#fff;
+}
+.modal-cancel{background:rgba(100,116,139,.75)}
+.modal-submit{background:linear-gradient(135deg,#ef4444,#f97316)}
+
+/* Cart */
+.cart-items{
+  margin:10px 10px;
+  padding:14px 12px;
+  border-radius:18px;
+  background:var(--card);
+  border:1px solid rgba(15,23,42,.08);
+  box-shadow:var(--shadow2);
+  backdrop-filter: blur(14px);
+}
+.cart-items h3{
+  margin:0 0 10px;
+  font-size: clamp(15px, 3.4vw, 17px);
+  font-weight: 950;
+}
+.cart-items ul{list-style:none;padding:0;margin:0;max-height:260px;overflow-y:auto}
+.cart-items li{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:10px;
+  padding:12px 12px;
+  border-radius:16px;
+  background:rgba(255,255,255,.88);
+  border:1px solid var(--line);
+  margin-bottom:10px;
+  box-shadow:0 8px 18px rgba(2,6,23,.05);
+}
+.cart-item-info{flex:1;font-size:13px;font-weight:800;color:rgba(15,23,42,.86)}
+.remove-item{
+  border:none;
+  padding:8px 12px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:950;
+  cursor:pointer;
+  color:#fff;
+  background:linear-gradient(135deg,#ef4444,#f97316);
+  box-shadow:0 10px 18px rgba(239,68,68,.18);
+}
+
+/* Submit */
+.submit-btn{
+  display:block;width:calc(100% - 24px);max-width:560px;
+  margin:14px auto 18px;
+  padding:15px 16px;
+  border:none;border-radius:18px;
+  color:#fff;
+  font-size:15px;font-weight:950;
+  cursor:pointer;
+  background:linear-gradient(135deg,var(--primary1),var(--primary2));
+  box-shadow:0 14px 28px rgba(37,99,235,.20);
+}
+.submit-btn:disabled{
+  background:rgba(100,116,139,.55);
+  box-shadow:none;
+  cursor:not-allowed;
+}
+
+@media(max-width:480px){
+  .header{padding:11px 10px}
+  .section,.cart-items,.reason-section,.current-stock-display,.queue-panel{margin:8px 8px}
+  .warning-banner{margin:8px 8px 0}
+  .stock-box{padding:9px 6px}
+}
+</style>
+</head>
+
+<body>
+<div class="login-container" id="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <img src="bosch.png" alt="Bosch Logo"/>
+    </div>
+
+    <div class="app-tag">Bosch Access Only</div>
+    <form id="login-form">
+      <input type="text" id="login-username" placeholder="Username" required />
+      <input type="password" id="login-password" placeholder="Password" required />
+      <button type="submit">Login</button>
+      <div class="error-message" id="error-message"></div>
+    </form>
+  </div>
+</div>
+
+<div class="main-app" id="main-app">
+  <div class="header">
+    <div class="brand-wrap">
+      <div class="logo-slot" title="Logo">
+        <img src="bosch.png" alt="Bosch Logo"/>
+      </div>
+      <div>
+        <h1>Bosch Stock</h1>
+        <div class="user-info" id="user-info"></div>
+      </div>
+    </div>
+
+    <div class="switch-container">
+      <div class="mode-box">
+        <label class="switch" aria-label="IN OUT toggle">
+          <span class="slider neutral" id="slider"></span>
+        </label>
+        <span class="switch-label" id="switch-label">IN/OUT</span>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn refresh-btn" id="refresh-btn" type="button">Refresh</button>
+        <button class="btn logout-btn" id="logout-btn" type="button">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="warning-banner" id="warning-banner">
+    Please select IN or OUT mode using the toggle switch above
+  </div>
+
+  <div class="current-stock-display">
+    <div class="stock-row" id="stock-info"></div>
+  </div>
+
+  <div class="action-display" id="action-display"></div>
+
+  <!-- CONFIRM QUEUE -->
+  <div class="queue-panel" id="queue-panel">
+    <h3>Confirm Queue (from Warehouse)</h3>
+    <ul class="queue-list" id="queue-list"></ul>
+  </div>
+
+  <div class="reason-section" id="reason-section">
+    <h3>OUT Reason</h3>
+
+    <select id="reason-select">
+      <option value="Cycle Rally">Cycle Rally</option>
+      <option value="VIP Kit">VIP Kit</option>
+      <option value="Against Donation">Against Donation</option>
+      <option value="NGO/Beneficiary">NGO/Beneficiary</option>
+      <option value="Volunteers">Volunteers</option>
+      <option value="Flag off & Torch bearers">Flag off & Torch bearers</option>
+      <option value="Police">Police</option>
+      <option value="Others">Others</option>
+    </select>
+
+    <input id="reason-custom" type="text" placeholder="Type reason (max 20 words)" style="display:none;" />
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <h3>Sizes</h3>
+      <button class="add-all-btn" id="add-all-btn" type="button" disabled>Add to Cart</button>
+    </div>
+
+    <div style="font-size:12px;font-weight:950;color:rgba(100,116,139,.92);margin-bottom:6px;">Kids (26–34)</div>
+    <div class="kids-scroll" id="kids-scroll"></div>
+
+    <div style="height:10px"></div>
+
+    <div style="font-size:12px;font-weight:950;color:rgba(100,116,139,.92);margin-bottom:6px;">Adults (36–46)</div>
+    <div class="size-row" id="adult-sizes"></div>
+  </div>
+
+  <div class="cart-items">
+    <h3>Cart</h3>
+    <ul id="cart-list"></ul>
+  </div>
+
+  <button class="submit-btn" id="submit-btn" type="button" disabled>Select IN/OUT Mode First</button>
+</div>
+
+<!-- Reject modal -->
+<div class="modal-overlay" id="reject-modal">
+  <div class="modal">
+    <h4>Reject request</h4>
+    <p>Please type a reason (required).</p>
+    <textarea id="reject-reason" maxlength="220" placeholder="Type reason..."></textarea>
+    <div class="modal-actions">
+      <button class="modal-cancel" id="reject-cancel-btn" type="button">Back</button>
+      <button class="modal-submit" id="reject-submit-btn" type="button">Reject</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+/* Sizes fixed to match SQL constraint */
+const adultsSizes = ['36','38','40','42','44','46'];
+const kidsSizes = ['26','28','30','32','34'];
+
+let currentAction = null;
+let switchState = 'neutral';
+let cart = [];
+let currentUser = null;
+
+let pendingRejectTransferId = null;
+let stockQuantities = {}; // key: `${category}-${size}` -> qty
+
+// UPDATED SUPABASE (same project as Warehouse)
+const SUPABASE_URL = 'https://eqvhzxljdcoeigbyqrlg.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxdmh6eGxqZGNvZWlnYnlxcmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4MDg1OTcsImV4cCI6MjA4MTM4NDU5N30.q71CAFw3UsjiNwW8oM66HiHbWxGQZQzKRcISoPOO8QE';
+
+const ORG = 'Bosch';
+const ALLOWED_ORGANIZATION = 'Bosch';
+
+const { createClient } = supabase;
+const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function qs(id){ return document.getElementById(id); }
+
+function updateReasonCustomVisibility() {
+  const selected = qs('reason-select').value;
+  const input = qs('reason-custom');
+  if (selected === 'Others') {
+    input.style.display = 'block';
+    input.disabled = false;
+  } else {
+    input.style.display = 'none';
+    input.disabled = true;
+    input.value = '';
+  }
+}
+
+/* ---------- LOGIN ---------- */
+qs('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = qs('login-username').value.trim();
+  const password = qs('login-password').value.trim();
+  const errorMsg = qs('error-message');
+
+  try {
+    const { data, error } = await client
+      .from('users')
+      .select('id,username,name,organization')
+      .eq('username', username)
+      .eq('password', password)
+      .eq('organization', ALLOWED_ORGANIZATION)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) {
+      errorMsg.textContent = 'Invalid credentials';
+      errorMsg.style.display = 'block';
+      return;
+    }
+
+    currentUser = data;
+    errorMsg.style.display = 'none';
+    await showMainApp();
+  } catch (err) {
+    console.error(err);
+    errorMsg.textContent = `Login failed: ${err.message || err}`;
+    errorMsg.style.display = 'block';
+  }
+});
+
+async function showMainApp() {
+  qs('login-page').style.display = 'none';
+  qs('main-app').style.display = 'block';
+  qs('user-info').textContent = `${currentUser.name} (${currentUser.organization})`;
+  qs('warning-banner').style.display = 'block';
+
+  createSizeButtons('kids-scroll', kidsSizes, false);
+  createSizeButtons('adult-sizes', adultsSizes, true);
+
+  updateReasonCustomVisibility();
+  qs('reason-select').addEventListener('change', updateReasonCustomVisibility);
+
+  await manualRefresh();
+}
+
+/* ---------- REFRESH ---------- */
+async function manualRefresh() {
+  await loadOrgTotals();
+  await loadStockQuantities();
+  await loadConfirmQueue();
+}
+
+/* ---------- STOCK TOTALS ---------- */
+async function loadOrgTotals() {
+  try {
+    const { data, error } = await client
+      .from('stock')
+      .select('category,quantity')
+      .eq('organization', ORG);
+
+    if (error) throw error;
+
+    let totalKids = 0, totalAdults = 0;
+    (data || []).forEach(item => {
+      if (item.category === 'kids') totalKids += item.quantity;
+      if (item.category === 'adults') totalAdults += item.quantity;
+    });
+
+    const grandTotal = totalKids + totalAdults;
+
+    qs('stock-info').innerHTML = `
+      <div class="stock-box">
+        <div class="stock-label">Kids</div>
+        <div class="stock-value">${totalKids}</div>
+      </div>
+      <div class="stock-box">
+        <div class="stock-label">Adults</div>
+        <div class="stock-value">${totalAdults}</div>
+      </div>
+      <div class="stock-box">
+        <div class="stock-label">Grand Total</div>
+        <div class="stock-value">${grandTotal}</div>
+      </div>
+    `;
+  } catch (err) {
+    console.error(err);
+    qs('stock-info').innerHTML = `
+      <div class="stock-box"><div class="stock-label">Error</div><div class="stock-value">—</div></div>
+      <div class="stock-box"><div class="stock-label">Loading</div><div class="stock-value">—</div></div>
+      <div class="stock-box"><div class="stock-label">Stock</div><div class="stock-value">—</div></div>
+    `;
+  }
+}
+
+/* ---------- PER-SIZE AVAILABLE ---------- */
+async function loadStockQuantities() {
+  try {
+    const { data, error } = await client
+      .from('stock')
+      .select('category,size,quantity')
+      .eq('organization', ORG);
+
+    if (error) throw error;
+
+    stockQuantities = {};
+    (data || []).forEach(item => {
+      stockQuantities[`${item.category}-${item.size}`] = item.quantity || 0;
+    });
+
+    updateAvailableLabels();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function updateAvailableLabels() {
+  [...kidsSizes, ...adultsSizes].forEach(size => {
+    const cat = kidsSizes.includes(size) ? 'kids' : 'adults';
+    const key = `${cat}-${size}`;
+    const available = stockQuantities[key] ?? 0;
+    const el = document.getElementById(`avail-${cat}-${size}`);
+    if (el) el.textContent = `Avail: ${available}`;
+  });
+}
+
+/* ---------- CONFIRM QUEUE ---------- */
+async function loadConfirmQueue() {
+  const list = qs('queue-list');
+  list.innerHTML = `<li class="queue-empty">Loading…</li>`;
+
+  const { data: transfers, error: tErr } = await client
+    .from('stock_transfers')
+    .select('id,from_org,to_org,status,created_by_name,created_by_username,created_at')
+    .eq('to_org', ORG)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true });
+
+  if (tErr) {
+    console.error(tErr);
+    list.innerHTML = `<li class="queue-empty">Failed to load queue</li>`;
+    return;
+  }
+
+  if (!transfers || transfers.length === 0) {
+    list.innerHTML = `<li class="queue-empty">No pending requests</li>`;
+    return;
+  }
+
+  const ids = transfers.map(x => x.id);
+  const { data: items, error: iErr } = await client
+    .from('stock_transfer_items')
+    .select('transfer_id,category,size,quantity')
+    .in('transfer_id', ids)
+    .order('category', { ascending: true })
+    .order('size', { ascending: true });
+
+  if (iErr) {
+    console.error(iErr);
+    list.innerHTML = `<li class="queue-empty">Failed to load items</li>`;
+    return;
+  }
+
+  const byTransfer = {};
+  (items || []).forEach(it => {
+    (byTransfer[it.transfer_id] ||= []).push(it);
+  });
+
+  list.innerHTML = '';
+  transfers.forEach(tr => {
+    const its = byTransfer[tr.id] || [];
+    const total = its.reduce((s, x) => s + (x.quantity || 0), 0);
+
+    const rowsHtml = its.map(x => {
+      const label = `${x.size}`;
+      return `<tr><td>${x.category.toUpperCase()} - Size ${label}</td><td>${x.quantity}</td></tr>`;
+    }).join('');
+
+    const li = document.createElement('li');
+    li.className = 'queue-card';
+    li.innerHTML = `
+      <div class="queue-meta">
+        <div>Request #${tr.id} • From ${tr.from_org}</div>
+        <div>By ${tr.created_by_name || 'Warehouse'}</div>
+      </div>
+      <table class="queue-table">
+        <tbody>
+          ${rowsHtml || `<tr><td>Items</td><td>—</td></tr>`}
+        </tbody>
+      </table>
+      <div class="queue-total">Total Qty: ${total}</div>
+      <div class="queue-actions">
+        <button class="queue-btn queue-accept" type="button" data-accept="${tr.id}">Accept</button>
+        <button class="queue-btn queue-reject" type="button" data-reject="${tr.id}">Reject</button>
+      </div>
+    `;
+    list.appendChild(li);
+  });
+
+  list.querySelectorAll('[data-accept]').forEach(btn => {
+    btn.addEventListener('click', () => acceptTransfer(parseInt(btn.dataset.accept, 10)));
+  });
+  list.querySelectorAll('[data-reject]').forEach(btn => {
+    btn.addEventListener('click', () => openRejectModal(parseInt(btn.dataset.reject, 10)));
+  });
+}
+
+async function acceptTransfer(transferId) {
+  if (!confirm(`Accept request #${transferId}? This will deduct Warehouse stock and add to Bosch.`)) return;
+
+  const { error } = await client.rpc('accept_stock_transfer', {
+    p_transfer_id: transferId,
+    p_decided_by_name: currentUser.name,
+    p_decided_by_username: currentUser.username
+  });
+
+  if (error) {
+    alert('Accept failed: ' + (error.message || error));
+    return;
+  }
+
+  await manualRefresh();
+  alert(`Accepted request #${transferId}`);
+}
+
+function openRejectModal(transferId) {
+  pendingRejectTransferId = transferId;
+  qs('reject-reason').value = '';
+  qs('reject-modal').style.display = 'flex';
+}
+
+function closeRejectModal() {
+  qs('reject-modal').style.display = 'none';
+  pendingRejectTransferId = null;
+}
+
+qs('reject-cancel-btn').addEventListener('click', closeRejectModal);
+
+qs('reject-submit-btn').addEventListener('click', async () => {
+  const reason = qs('reject-reason').value.trim();
+  if (!pendingRejectTransferId) return;
+  if (!reason) { alert('Reason is required'); return; }
+
+  const { error } = await client.rpc('reject_stock_transfer', {
+    p_transfer_id: pendingRejectTransferId,
+    p_reject_note: reason,
+    p_decided_by_name: currentUser.name
+  });
+
+  if (error) {
+    alert('Reject failed: ' + (error.message || error));
+    return;
+  }
+
+  const id = pendingRejectTransferId;
+  closeRejectModal();
+  await manualRefresh();
+  alert(`Rejected request #${id}`);
+});
+
+/* ---------- LOGOUT ---------- */
+function logout() {
+  currentUser = null;
+  currentAction = null;
+  switchState = 'neutral';
+  cart = [];
+  stockQuantities = {};
+
+  qs('login-page').style.display = 'flex';
+  qs('main-app').style.display = 'none';
+  qs('login-username').value = '';
+  qs('login-password').value = '';
+
+  resetSwitch();
+  updateSizeButtonColors();
+  updateCart();
+}
+
+/* ---------- SWITCH ---------- */
+function updateSizeButtonColors() {
+  document.querySelectorAll('.size-btn, .kids-box').forEach(btn => {
+    btn.classList.remove('mode-in', 'mode-out');
+    if (currentAction === 'in') btn.classList.add('mode-in');
+    if (currentAction === 'out') btn.classList.add('mode-out');
+  });
+}
+
+function cycleSwitch() {
+  const slider = qs('slider');
+  const label = qs('switch-label');
+  const actionDisplay = qs('action-display');
+  const warningBanner = qs('warning-banner');
+  const submitBtn = qs('submit-btn');
+  const addAllBtn = qs('add-all-btn');
+  const reasonSection = qs('reason-section');
+
+  if (switchState === 'neutral') {
+    switchState = 'out';
+    currentAction = 'out';
+    slider.className = 'slider out';
+    label.textContent = 'OUT';
+
+    submitBtn.textContent = 'Submit - Stock OUT';
+    submitBtn.style.background = 'linear-gradient(135deg,#ef4444,#f97316)';
+
+    actionDisplay.textContent = 'STOCK OUT (Bosch)';
+    actionDisplay.style.display = 'block';
+
+    warningBanner.style.display = 'none';
+    reasonSection.style.display = 'block';
+
+    updateReasonCustomVisibility();
+
+    submitBtn.disabled = false;
+    addAllBtn.disabled = false;
+  } else if (switchState === 'out') {
+    switchState = 'in';
+    currentAction = 'in';
+    slider.className = 'slider in';
+    label.textContent = 'IN';
+
+    submitBtn.textContent = 'Use Confirm Queue to receive';
+    submitBtn.style.background = 'rgba(100,116,139,.55)';
+
+    actionDisplay.textContent = 'STOCK IN (Use Confirm Queue)';
+    actionDisplay.style.display = 'block';
+
+    warningBanner.style.display = 'none';
+    reasonSection.style.display = 'none';
+
+    submitBtn.disabled = true;
+    addAllBtn.disabled = true;
+  } else {
+    resetSwitch();
+  }
+  updateSizeButtonColors();
+}
+
+function resetSwitch() {
+  switchState = 'neutral';
+  currentAction = null;
+
+  qs('slider').className = 'slider neutral';
+  qs('switch-label').textContent = 'IN/OUT';
+  qs('action-display').style.display = 'none';
+  qs('warning-banner').style.display = 'block';
+  qs('reason-section').style.display = 'none';
+
+  const submitBtn = qs('submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Select IN/OUT Mode First';
+  submitBtn.style.background = 'rgba(100,116,139,.55)';
+
+  qs('add-all-btn').disabled = true;
+}
+
+/* ---------- SIZES + CART ---------- */
+function createSizeButtons(containerId, sizes, isAdult = true) {
+  const container = qs(containerId);
+  container.innerHTML = '';
+
+  sizes.forEach(size => {
+    const sizeItem = document.createElement('div');
+    sizeItem.className = 'size-item';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = isAdult ? 'size-btn' : 'kids-box';
+    btn.textContent = size;
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'qty-input';
+    input.placeholder = 'Qty';
+    input.min = '0';
+    input.value = '';
+    input.dataset.size = size;
+    input.dataset.category = isAdult ? 'adults' : 'kids';
+
+    const avail = document.createElement('div');
+    avail.className = 'available-qty';
+    avail.id = `avail-${isAdult ? 'adults' : 'kids'}-${size}`;
+    avail.textContent = 'Avail: 0';
+
+    sizeItem.appendChild(btn);
+    sizeItem.appendChild(input);
+    sizeItem.appendChild(avail);
+    container.appendChild(sizeItem);
+  });
+}
+
+function addAllItems() {
+  if (!currentAction || currentAction === 'in') {
+    alert('Use OUT mode for manual actions. IN is via Confirm Queue.');
+    return;
+  }
+
+  const inputs = [
+    ...document.querySelectorAll('#kids-scroll .qty-input'),
+    ...document.querySelectorAll('#adult-sizes .qty-input'),
+  ];
+
+  let added = 0;
+  inputs.forEach(input => {
+    const quantity = parseInt(input.value, 10) || 0;
+    if (quantity > 0) {
+      cart.push({
+        category: input.dataset.category,
+        size: input.dataset.size,
+        quantity,
+        action: currentAction
+      });
+      input.value = '';
+      added++;
+    }
+  });
+
+  if (added === 0) alert('Please enter quantity for at least one size');
+  updateCart();
+}
+
+function updateCart() {
+  const list = qs('cart-list');
+  list.innerHTML = '';
+
+  if (cart.length === 0) {
+    list.innerHTML = '<li style="text-align:center;color:rgba(100,116,139,.85);font-weight:900;padding:18px 0;border:1px dashed rgba(15,23,42,.16);background:rgba(255,255,255,.70);border-radius:16px">Cart is empty</li>';
+    return;
+  }
+
+  cart.forEach((item, index) => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div class="cart-item-info">
+        <strong>${item.action.toUpperCase()}</strong> - ${item.category.toUpperCase()}<br>
+        Size: <strong>${item.size}</strong> | Qty: <strong>${item.quantity}</strong>
+      </div>
+      <button class="remove-item" type="button" data-remove="${index}">Remove</button>
+    `;
+    list.appendChild(li);
+  });
+
+  list.querySelectorAll('[data-remove]').forEach(btn => {
+    btn.addEventListener('click', () => removeFromCart(parseInt(btn.dataset.remove, 10)));
+  });
+}
+
+function removeFromCart(index) {
+  cart.splice(index, 1);
+  updateCart();
+}
+
+function countWords(s) { return (s.trim().match(/\S+/g) || []).length; }
+
+function buildOutReason() {
+  const base = qs('reason-select').value;
+  if (base !== 'Others') return base;
+
+  const custom = qs('reason-custom').value.trim();
+  if (!custom) throw new Error('Please type the reason for Others.');
+  if (countWords(custom) > 20) throw new Error('Custom reason must be max 20 words.');
+  return custom;
+}
+
+/* ---------- SUBMIT CART (OUT only) ---------- */
+async function submitCart() {
+  if (currentAction !== 'out') {
+    alert('Only OUT mode is supported here. Use Confirm Queue for receiving.');
+    return;
+  }
+  if (cart.length === 0) { alert('Cart is empty'); return; }
+
+  let reason = '';
+  try { reason = buildOutReason(); }
+  catch (e) { alert(e.message); return; }
+
+  const totalQty = cart.reduce((sum, x) => sum + x.quantity, 0);
+  if (!confirm(`Dispatch ${totalQty} items from Bosch?\nReason: ${reason}`)) return;
+
+  try {
+    for (const item of cart) {
+      const { error } = await client.rpc('upsert_warehouse_stock', {
+        p_organization: ORG,
+        p_category: item.category,
+        p_size: item.size,
+        p_quantity: -item.quantity,
+        p_type: 'out',
+        p_user_name: currentUser.name,
+        p_reason: reason,
+      });
+      if (error) throw error;
+    }
+
+    cart = [];
+    updateCart();
+    qs('reason-custom').value = '';
+    updateReasonCustomVisibility();
+
+    await manualRefresh();
+    alert(`Success! ${totalQty} items processed.`);
+  } catch (err) {
+    console.error(err);
+    alert('Error: ' + (err.message || 'Failed'));
+  }
+}
+
+/* ---------- INIT ---------- */
+updateCart();
+resetSwitch();
+updateSizeButtonColors();
+
+qs('slider').addEventListener('click', cycleSwitch);
+qs('refresh-btn').addEventListener('click', manualRefresh);
+qs('logout-btn').addEventListener('click', logout);
+qs('add-all-btn').addEventListener('click', addAllItems);
+qs('submit-btn').addEventListener('click', submitCart);
+</script>
+</body>
+</html>

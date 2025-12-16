@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Warehouse T‑Shirt Inventory</title>
+
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg0:#f6f7fb;
+  --ink:#0f172a;
+  --muted:#64748b;
+  --line:rgba(15,23,42,.10);
+  --line2:rgba(15,23,42,.08);
+  --primary1:#0ea5e9;
+  --primary2:#2563eb;
+  --good1:#22c55e;
+  --good2:#14b8a6;
+  --bad1:#ef4444;
+  --bad2:#f97316;
+  --card:rgba(255,255,255,.78);
+  --shadow:0 10px 30px rgba(2,6,23,.08);
+  --shadow2:0 6px 16px rgba(2,6,23,.08);
+}
+
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial;
+  color:var(--ink);
+  background:
+    radial-gradient(900px 500px at 10% 0%, rgba(14,165,233,.16), transparent 60%),
+    radial-gradient(900px 500px at 90% 10%, rgba(37,99,235,.14), transparent 60%),
+    linear-gradient(180deg, var(--bg0), #fff 55%, var(--bg0));
+  overflow-x:hidden;
+}
+
+/* ====== LOADING OVERLAY ====== */
+.loading-overlay{
+  position:fixed; inset:0; z-index:9999;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.55);
+  backdrop-filter: blur(10px);
+}
+.loading-card{
+  width:min(360px, calc(100% - 32px));
+  border-radius:22px;
+  background:rgba(255,255,255,.88);
+  border:1px solid rgba(15,23,42,.10);
+  box-shadow:0 18px 45px rgba(2,6,23,.14);
+  padding:18px 16px;
+  display:flex; align-items:center; gap:12px;
+}
+.spinner{
+  width:26px;height:26px;border-radius:999px;
+  border:3px solid rgba(15,23,42,.14);
+  border-top-color: rgba(14,165,233,.95);
+  animation: spin .85s linear infinite;
+  flex:0 0 auto;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{
+  font-weight:950;
+  color:rgba(15,23,42,.86);
+  font-size:14px;
+}
+
+/* ====== LOGIN ====== */
+.login-container{display:flex;justify-content:center;align-items:center;min-height:100vh;padding:18px}
+.login-box{
+  width:100%;max-width:430px;
+  background:var(--card);
+  border:1px solid rgba(14,165,233,.20);
+  box-shadow:var(--shadow);
+  border-radius:24px;
+  backdrop-filter: blur(16px);
+  padding:28px 22px;
+  position:relative;
+}
+.login-box::before{
+  content:"";
+  position:absolute;inset:0;
+  border-radius:24px;
+  background:linear-gradient(135deg, rgba(14,165,233,.10), rgba(37,99,235,.08));
+  pointer-events:none;
+}
+.login-box > *{position:relative}
+.login-box h2{
+  margin:0 0 8px;
+  text-align:center;
+  font-size: clamp(20px, 4vw, 28px);
+  font-weight: 900;
+  letter-spacing:-0.02em;
+}
+.login-box .app-tag{
+  text-align:center;
+  color:var(--primary1);
+  font-size:12px;
+  font-weight:800;
+  margin:0 auto 18px;
+  padding:9px 12px;
+  border-radius:999px;
+  background:rgba(14,165,233,.08);
+  border:1px solid rgba(14,165,233,.18);
+  width:fit-content;
+}
+.login-box input{
+  width:100%;
+  padding:14px 14px;
+  margin:10px 0;
+  border-radius:14px;
+  border:1.6px solid rgba(15,23,42,.16);
+  background:rgba(255,255,255,.95);
+  font-size:15px;
+  font-weight:650;
+  outline:none;
+  transition:.15s;
+}
+.login-box input:focus{
+  border-color: rgba(14,165,233,.60);
+  box-shadow:0 0 0 4px rgba(14,165,233,.14);
+}
+.login-box button{
+  width:100%;
+  border:none;
+  margin-top:10px;
+  padding:14px 16px;
+  border-radius:16px;
+  color:#fff;
+  font-weight:900;
+  font-size:15px;
+  cursor:pointer;
+  background:linear-gradient(135deg,var(--primary1),var(--primary2));
+  box-shadow:0 12px 26px rgba(14,165,233,.22);
+  transition:transform .12s, filter .12s;
+}
+.login-box button:hover{filter:brightness(1.03)}
+.login-box button:active{transform:translateY(1px)}
+.error-message{
+  display:none;
+  margin-top:10px;
+  padding:10px 12px;
+  border-radius:14px;
+  font-size:13px;
+  font-weight:800;
+  color:#991b1b;
+  background:rgba(239,68,68,.10);
+  border:1px solid rgba(239,68,68,.22);
+}
+
+/* ====== APP ====== */
+.main-app{display:none;max-width:100vw}
+.header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(255,255,255,.82);
+  backdrop-filter: blur(16px);
+  border-bottom:1px solid var(--line2);
+  padding:12px 12px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.header h1{margin:0;font-size: clamp(16px, 2.8vw, 20px);font-weight: 950;letter-spacing:-0.02em}
+.user-info{margin-top:3px;font-size:11px;font-weight:750;color:var(--muted)}
+
+.switch-container{display:flex;gap:12px;align-items:center}
+.mode-box{display:flex;flex-direction:column;align-items:center;gap:6px}
+
+.switch{
+  --pad: 4px;
+  --thumb: 24px;
+  position:relative;
+  width:64px;height:32px;
+  border-radius:999px;
+  overflow:hidden;
+  background:rgba(15,23,42,.08);
+  border:1px solid rgba(15,23,42,.10);
+  box-shadow: inset 0 1px 2px rgba(2,6,23,.10);
+  -webkit-clip-path: inset(0 round 999px);
+  clip-path: inset(0 round 999px);
+}
+.switch input{opacity:0;width:0;height:0;position:absolute}
+.slider{
+  position:absolute;inset:0;border-radius:999px;
+  cursor:pointer;transition:background .18s;
+}
+.slider:before{
+  content:"";
+  position:absolute;
+  width:var(--thumb);height:var(--thumb);
+  top:50%;left: var(--pad);
+  transform: translateY(-50%);
+  border-radius:999px;
+  background:rgba(255,255,255,.96);
+  box-shadow:0 6px 14px rgba(2,6,23,.18);
+  transition:left .18s;
+}
+.slider.neutral{background:rgba(15,23,42,.08)}
+.slider.out{background:linear-gradient(135deg, rgba(239,68,68,.28), rgba(249,115,22,.22))}
+.slider.in{background:linear-gradient(135deg, rgba(34,197,94,.28), rgba(20,184,166,.22))}
+.slider.out:before{ left: var(--pad); }
+.slider.neutral:before{ left: calc(var(--pad) + (100% - var(--thumb) - (2 * var(--pad))) / 2); }
+.slider.in:before{ left: calc(100% - var(--thumb) - var(--pad)); }
+
+.switch-label{font-size:11px;font-weight:950;letter-spacing:.10em;color:rgba(15,23,42,.70)}
+
+.action-buttons{display:flex;flex-direction:column;gap:7px}
+.btn{
+  border:none;border-radius:999px;
+  padding:8px 14px;
+  font-size:11px;font-weight:950;
+  cursor:pointer;
+  box-shadow:var(--shadow2);
+}
+.refresh-btn{background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff}
+.logout-btn{background:linear-gradient(135deg,#ef4444,#f97316);color:#fff}
+
+.warning-banner{
+  margin:10px 10px 0;
+  padding:12px 12px;
+  border-radius:16px;
+  font-size:13px;font-weight:900;
+  color:#92400e;
+  background:rgba(250,204,21,.18);
+  border:1px solid rgba(250,204,21,.26);
+  display:none;
+}
+
+.current-stock-display{
+  margin:10px 10px 6px;
+  padding:10px;
+  border-radius:18px;
+  background:var(--card);
+  border:1px solid rgba(14,165,233,.14);
+  box-shadow:var(--shadow2);
+  backdrop-filter: blur(14px);
+}
+.stock-row{display:flex;gap:8px;flex-wrap:nowrap}
+.stock-box{
+  flex:1 1 0; min-width:0;
+  border-radius:16px;
+  padding:10px 8px;
+  background:rgba(255,255,255,.86);
+  border:1px solid rgba(15,23,42,.10);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.stock-label{
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.10em;
+  text-transform:uppercase;
+  color:rgba(100,116,139,.95);
+  white-space:nowrap;
+}
+.stock-value{
+  margin-top:4px;
+  font-size: clamp(14px, 4vw, 18px);
+  font-weight: 950;
+  color:rgba(15,23,42,.95);
+}
+
+.action-display{
+  margin:8px 10px 10px;
+  padding:12px 12px;
+  border-radius:16px;
+  background:rgba(255,255,255,.90);
+  border:1px solid rgba(15,23,42,.10);
+  box-shadow:var(--shadow2);
+  font-weight:950;
+  font-size:13px;
+  display:none;
+}
+
+.section,
+.location-section,
+.reason-section{
+  margin:10px 10px;
+  padding:14px 12px;
+  border-radius:18px;
+  background:var(--card);
+  border:1px solid rgba(15,23,42,.08);
+  box-shadow:var(--shadow2);
+  backdrop-filter: blur(14px);
+}
+.section-header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.section-header h3{margin:0;font-size: clamp(14px, 3.3vw, 16px);font-weight: 950}
+
+.add-all-btn{
+  border:none;
+  padding:9px 14px;
+  border-radius:999px;
+  font-weight:950;
+  font-size:12px;
+  cursor:pointer;
+  color:#fff;
+  background:linear-gradient(135deg,var(--primary1),var(--primary2));
+  box-shadow:0 10px 22px rgba(14,165,233,.18);
+}
+.add-all-btn:disabled{
+  background:rgba(100,116,139,.55);
+  cursor:not-allowed;
+  box-shadow:none;
+}
+
+.size-row,.kids-scroll{display:flex;gap:12px;overflow-x:auto;padding:10px 2px 6px;-webkit-overflow-scrolling:touch}
+.size-row::-webkit-scrollbar,.kids-scroll::-webkit-scrollbar{height:6px}
+.size-row::-webkit-scrollbar-thumb,.kids-scroll::-webkit-scrollbar-thumb{background:rgba(15,23,42,.18);border-radius:999px}
+.size-item{flex:none;display:flex;flex-direction:column;align-items:center;gap:7px}
+
+.size-btn,.kids-box{
+  width:56px;height:56px;
+  border-radius:18px;
+  border:1px solid rgba(15,23,42,.10);
+  background:rgba(255,255,255,.90);
+  box-shadow:0 10px 18px rgba(2,6,23,.06);
+  font-size:14px;
+  font-weight:950;
+  cursor:pointer;
+}
+
+.mode-in .size-btn, .mode-in .kids-box{
+  color:#fff;
+  border-color: rgba(34,197,94,.25);
+  background:linear-gradient(135deg,var(--good1),var(--good2));
+}
+.mode-out .size-btn, .mode-out .kids-box{
+  color:#fff;
+  border-color: rgba(239,68,68,.25);
+  background:linear-gradient(135deg,var(--bad1),var(--bad2));
+}
+
+.qty-input{
+  width:56px;
+  padding:7px 8px;
+  border-radius:14px;
+  border:1.6px solid rgba(15,23,42,.14);
+  background:rgba(255,255,255,.92);
+  font-size:14px;
+  font-weight:900;
+  text-align:center;
+  outline:none;
+}
+.qty-input:focus{
+  border-color: rgba(14,165,233,.55);
+  box-shadow:0 0 0 4px rgba(14,165,233,.12);
+}
+
+.available-qty{
+  font-size:11px;
+  font-weight:850;
+  color:rgba(100,116,139,.88);
+  text-align:center;
+  margin-top:2px;
+}
+
+.location-section h3, .reason-section h3{margin:0 0 6px;font-size:15px;font-weight:950}
+.location-section select, .reason-section select{
+  width:100%;
+  padding:12px 12px;
+  border-radius:14px;
+  border:1.6px solid rgba(15,23,42,.14);
+  background:rgba(255,255,255,.92);
+  font-size:13px;
+  font-weight:900;
+  outline:none;
+  margin-top:10px;
+}
+.location-section select:focus, .reason-section select:focus{
+  border-color: rgba(14,165,233,.55);
+  box-shadow:0 0 0 4px rgba(14,165,233,.12);
+}
+
+.cart-items{
+  margin:10px 10px;
+  padding:14px 12px;
+  border-radius:18px;
+  background:var(--card);
+  border:1px solid rgba(15,23,42,.08);
+  box-shadow:var(--shadow2);
+  backdrop-filter: blur(14px);
+}
+.cart-items h3{margin:0 0 10px;font-size: clamp(15px, 3.4vw, 17px);font-weight: 950}
+.cart-items ul{list-style:none;padding:0;margin:0;max-height:260px;overflow-y:auto}
+.cart-items li{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:10px;
+  padding:12px 12px;
+  border-radius:16px;
+  background:rgba(255,255,255,.88);
+  border:1px solid rgba(15,23,42,.10);
+  margin-bottom:10px;
+  box-shadow:0 8px 18px rgba(2,6,23,.05);
+}
+.cart-item-info{flex:1;font-size:13px;font-weight:800;color:rgba(15,23,42,.86)}
+.remove-item{
+  border:none;
+  padding:8px 12px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:950;
+  cursor:pointer;
+  color:#fff;
+  background:linear-gradient(135deg,#ef4444,#f97316);
+  box-shadow:0 10px 18px rgba(239,68,68,.18);
+}
+
+.cart-summary{
+  margin-top:10px;
+  padding:10px 12px;
+  border-radius:16px;
+  background:rgba(255,255,255,.90);
+  border:1px solid rgba(15,23,42,.10);
+  font-size:13px;
+  font-weight:950;
+}
+
+.submit-btn{
+  display:block;width:calc(100% - 24px);max-width:560px;
+  margin:14px auto 18px;
+  padding:15px 16px;
+  border:none;border-radius:18px;
+  color:#fff;
+  font-size:15px;font-weight:950;
+  cursor:pointer;
+  background:linear-gradient(135deg,var(--primary1),var(--primary2));
+  box-shadow:0 14px 28px rgba(14,165,233,.20);
+}
+.submit-btn:hover{filter:brightness(1.03)}
+.submit-btn:disabled{
+  background:rgba(100,116,139,.55);
+  box-shadow:none;
+  cursor:not-allowed;
+}
+
+@media(max-width:480px){
+  .header{padding:11px 10px}
+  .section,.cart-items,.location-section,.reason-section,.current-stock-display{margin:8px 8px}
+  .warning-banner{margin:8px 8px 0}
+  .stock-box{padding:9px 6px}
+}
+</style>
+</head>
+
+<body>
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-card">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loading-text">Loading…</div>
+  </div>
+</div>
+
+<!-- Login Page -->
+<div class="login-container" id="login-page">
+  <div class="login-box">
+    <h2>Warehouse</h2>
+    <div class="app-tag">Warehouse Access Only</div>
+    <form id="login-form">
+      <input type="text" id="login-username" placeholder="Username" required />
+      <input type="password" id="login-password" placeholder="Password" required />
+      <button type="submit">Login</button>
+      <div class="error-message" id="error-message"></div>
+    </form>
+  </div>
+</div>
+
+<!-- Main Application -->
+<div class="main-app" id="main-app">
+  <div class="header">
+    <div>
+      <h1>Warehouse Stock</h1>
+      <div class="user-info" id="user-info"></div>
+    </div>
+
+    <div class="switch-container">
+      <div class="mode-box">
+        <label class="switch" aria-label="IN OUT toggle">
+          <input type="checkbox" id="action-switch" onchange="toggleAction()" />
+          <span class="slider neutral" id="slider"></span>
+        </label>
+        <span class="switch-label" id="switch-label">IN/OUT</span>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn refresh-btn" id="refresh-btn" type="button" onclick="manualRefresh(true)">Refresh</button>
+        <button class="btn logout-btn" type="button" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="warning-banner" id="warning-banner">
+    Please select IN or OUT mode using the toggle switch above
+  </div>
+
+  <!-- Totals Display -->
+  <div class="current-stock-display">
+    <div class="stock-row">
+      <div class="stock-box">
+        <div class="stock-label">Kids</div>
+        <div class="stock-value" id="total-kids">0</div>
+      </div>
+      <div class="stock-box">
+        <div class="stock-label">Adults</div>
+        <div class="stock-value" id="total-adults">0</div>
+      </div>
+      <div class="stock-box">
+        <div class="stock-label">Total Left</div>
+        <div class="stock-value" id="grand-total">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="action-display" id="action-display"></div>
+
+  <!-- Sizes -->
+  <div class="section">
+    <div class="section-header">
+      <h3>Sizes</h3>
+      <button class="add-all-btn" id="add-all-btn" type="button" onclick="addAllItems()" disabled>Add to Cart</button>
+    </div>
+
+    <div style="font-size:12px;font-weight:950;color:rgba(100,116,139,.92);margin-bottom:6px;">Kids Sizes (26–34)</div>
+    <div class="kids-scroll" id="kids-scroll"></div>
+
+    <div style="height:10px"></div>
+
+    <div style="font-size:12px;font-weight:950;color:rgba(100,116,139,.92);margin-bottom:6px;">Adults Sizes (S–XXXL)</div>
+    <div class="size-row" id="adult-sizes"></div>
+  </div>
+
+  <div class="location-section" id="location-section">
+    <h3>Select Destination Location</h3>
+    <select id="location-select">
+      <option value="">Select Location</option>
+      <option value="Bosch">Bosch</option>
+      <option value="TDK">TDK</option>
+      <option value="Mathma Nagar">Mathma Nagar</option>
+    </select>
+  </div>
+
+  <div class="reason-section" id="reason-section">
+    <h3>Select Reason for Stock Out</h3>
+    <select id="reason-select">
+      <option value="">Select Reason</option>
+      <option value="Sent to Organization">Sent to Organization</option>
+      <option value="Damaged Stock">Damaged Stock</option>
+      <option value="Return to Supplier">Return to Supplier</option>
+    </select>
+  </div>
+
+  <div class="cart-items">
+    <h3>Cart</h3>
+    <ul id="cart-list"></ul>
+    <div class="cart-summary" id="cart-summary" style="display:none;">
+      Total Qty: <span id="total-items">0</span>
+    </div>
+  </div>
+
+  <button class="submit-btn" id="submit-btn" type="button" onclick="submitCart()" disabled>Select IN/OUT Mode First</button>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+/* CONFIG */
+const SUPABASE_URL = 'https://eqvhzxljdcoeigbyqrlg.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxdmh6eGxqZGNvZWlnYnlxcmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4MDg1OTcsImV4cCI6MjA4MTM4NDU5N30.q71CAFw3UsjiNwW8oM66HiHbWxGQZQzKRcISoPOO8QE';
+
+const ALLOWED_ORGANIZATION = 'Warehouse';
+const ORG = 'Warehouse';
+
+/* Fixed allowed sizes */
+const kidsSizes = ['26','28','30','32','34'];
+const adultsSizes = ['S','M','L','XL','XXL','XXXL'];
+const ADULT_SIZE_MAP = { S:'36', M:'38', L:'40', XL:'42', XXL:'44', XXXL:'46' };
+
+let currentAction = null; // 'in' | 'out' | null
+let cart = [];
+let currentUser = null;
+let isSubmitting = false;
+
+// key: `${category}-${dbSize}` -> qty
+let stockQuantities = {};
+
+const { createClient } = supabase;
+const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function showLoading(show, text){
+  const overlay = document.getElementById('loading-overlay');
+  const t = document.getElementById('loading-text');
+  if (typeof text === 'string') t.textContent = text;
+  overlay.style.display = show ? 'flex' : 'none';
+}
+
+function setModeUI(mode){
+  const actionDisplay = document.getElementById('action-display');
+  const warningBanner = document.getElementById('warning-banner');
+  const app = document.getElementById('main-app');
+  const slider = document.getElementById('slider');
+  const submitBtn = document.getElementById('submit-btn');
+  const addAllBtn = document.getElementById('add-all-btn');
+
+  app.classList.remove('mode-in','mode-out');
+
+  if (!mode){
+    warningBanner.style.display = 'block';
+    actionDisplay.style.display = 'none';
+    slider.className = 'slider neutral';
+    document.getElementById('switch-label').textContent = 'IN/OUT';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Select IN/OUT Mode First';
+    submitBtn.style.background = 'rgba(100,116,139,.55)';
+    addAllBtn.disabled = true;
+    return;
+  }
+
+  warningBanner.style.display = 'none';
+  actionDisplay.style.display = 'block';
+  addAllBtn.disabled = false;
+
+  if (mode === 'in'){
+    app.classList.add('mode-in');
+    slider.className = 'slider in';
+    actionDisplay.textContent = 'Mode: STOCK IN (Supplier → Warehouse)';
+    actionDisplay.style.background = 'rgba(34,197,94,.14)';
+    document.getElementById('switch-label').textContent = 'IN';
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit - Stock IN';
+    submitBtn.style.background = 'linear-gradient(135deg,#22c55e,#14b8a6)';
+  } else {
+    app.classList.add('mode-out');
+    slider.className = 'slider out';
+    actionDisplay.textContent = 'Mode: STOCK OUT (Warehouse)';
+    actionDisplay.style.background = 'rgba(239,68,68,.12)';
+    document.getElementById('switch-label').textContent = 'OUT';
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit - Stock OUT';
+    submitBtn.style.background = 'linear-gradient(135deg,#ef4444,#f97316)';
+  }
+}
+
+function setNeutralSwitch(){
+  const sw = document.getElementById('action-switch');
+  sw.checked = false;
+  sw.indeterminate = true;
+  currentAction = null;
+  document.getElementById('location-section').style.display = 'block';
+  document.getElementById('reason-section').style.display = 'block';
+  setModeUI(null);
+}
+
+function toggleAction(){
+  const sw = document.getElementById('action-switch');
+  const locationSection = document.getElementById('location-section');
+  const reasonSection = document.getElementById('reason-section');
+
+  sw.indeterminate = false;
+
+  if (sw.checked){
+    currentAction = 'in';
+    locationSection.style.display = 'none';
+    reasonSection.style.display = 'none';
+    setModeUI('in');
+  } else {
+    currentAction = 'out';
+    locationSection.style.display = 'block';
+    reasonSection.style.display = 'block';
+    setModeUI('out');
+  }
+}
+
+async function updateWarehouseTotalsFromDB(){
+  const { data: rows, error } = await client
+    .from('stock')
+    .select('category,quantity')
+    .eq('organization', ORG);
+
+  if (error) throw error;
+
+  let kidsTotal = 0, adultsTotal = 0;
+  (rows || []).forEach(r => {
+    if (r.category === 'kids') kidsTotal += (r.quantity || 0);
+    if (r.category === 'adults') adultsTotal += (r.quantity || 0);
+  });
+
+  document.getElementById('total-kids').textContent = kidsTotal;
+  document.getElementById('total-adults').textContent = adultsTotal;
+  document.getElementById('grand-total').textContent = kidsTotal + adultsTotal;
+}
+
+async function loadStockQuantities(){
+  const { data, error } = await client
+    .from('stock')
+    .select('category,size,quantity')
+    .eq('organization', ORG);
+
+  if (error) throw error;
+
+  stockQuantities = {};
+  (data || []).forEach(r => {
+    stockQuantities[`${r.category}-${r.size}`] = r.quantity || 0;
+  });
+
+  updateAvailableLabels();
+}
+
+function updateAvailableLabels(){
+  kidsSizes.forEach(s => {
+    const el = document.getElementById(`avail-kids-${s}`);
+    if (el) el.textContent = `Avail: ${stockQuantities[`kids-${s}`] ?? 0}`;
+  });
+
+  adultsSizes.forEach(ui => {
+    const db = ADULT_SIZE_MAP[ui] || ui;
+    const el = document.getElementById(`avail-adults-${ui}`);
+    if (el) el.textContent = `Avail: ${stockQuantities[`adults-${db}`] ?? 0}`;
+  });
+}
+
+async function manualRefresh(showLoader=false){
+  try{
+    if (showLoader) showLoading(true, 'Refreshing...');
+    await updateWarehouseTotalsFromDB();
+    await loadStockQuantities();
+  }catch(e){
+    console.error(e);
+    alert('Refresh failed: ' + (e?.message || e));
+  }finally{
+    if (showLoader) showLoading(false);
+  }
+}
+
+/* LOGIN */
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value.trim();
+  const errorMsg = document.getElementById('error-message');
+
+  showLoading(true, 'Checking login...');
+
+  try{
+    const { data, error } = await client
+      .from('users')
+      .select('id,username,name,organization')
+      .eq('username', username)
+      .eq('password', password)
+      .eq('organization', ALLOWED_ORGANIZATION)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data){
+      errorMsg.textContent = 'Invalid credentials or unauthorized access';
+      errorMsg.style.display = 'block';
+      return;
+    }
+
+    currentUser = data;
+    errorMsg.style.display = 'none';
+    await showMainApp();
+  }catch(err){
+    console.error(err);
+    errorMsg.textContent = `Login failed: ${err.message || err}`;
+    errorMsg.style.display = 'block';
+  }finally{
+    showLoading(false);
+  }
+});
+
+async function showMainApp(){
+  showLoading(true, 'Loading warehouse UI...');
+  try{
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+    document.getElementById('user-info').textContent = `${currentUser.name} (${currentUser.organization})`;
+
+    createSizeButtons('kids-scroll', kidsSizes, false);
+    createSizeButtons('adult-sizes', adultsSizes, true);
+
+    setNeutralSwitch();
+    await manualRefresh(false);
+    updateCart();
+  } finally {
+    showLoading(false);
+  }
+}
+
+function logout(){
+  currentUser = null;
+  currentAction = null;
+  isSubmitting = false;
+  cart = [];
+  updateCart();
+
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('login-username').value = '';
+  document.getElementById('login-password').value = '';
+  setNeutralSwitch();
+}
+
+function createSizeButtons(containerId, sizes, isAdult=true){
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+
+  sizes.forEach(sizeLabel => {
+    const wrap = document.createElement('div');
+    wrap.className = 'size-item';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = isAdult ? 'size-btn' : 'kids-box';
+    btn.textContent = sizeLabel;
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'qty-input';
+    input.placeholder = 'Qty';
+    input.min = '0';
+    input.value = '0';
+    input.dataset.size = sizeLabel;
+    input.dataset.category = isAdult ? 'adults' : 'kids';
+
+    const dbSize = isAdult ? (ADULT_SIZE_MAP[sizeLabel] || sizeLabel) : sizeLabel;
+    input.dataset.dbsize = dbSize;
+
+    const avail = document.createElement('div');
+    avail.className = 'available-qty';
+    avail.id = `avail-${isAdult ? 'adults' : 'kids'}-${sizeLabel}`;
+    avail.textContent = 'Avail: 0';
+
+    wrap.appendChild(btn);
+    wrap.appendChild(input);
+    wrap.appendChild(avail);
+    container.appendChild(wrap);
+  });
+}
+
+function addAllItems(){
+  if (!currentAction){
+    alert('Please select IN or OUT mode first.');
+    return;
+  }
+  if (isSubmitting){
+    alert('Submitting in progress. Please wait.');
+    return;
+  }
+
+  const inputs = [
+    ...document.querySelectorAll('#kids-scroll .qty-input'),
+    ...document.querySelectorAll('#adult-sizes .qty-input'),
+  ];
+
+  let added = 0;
+  inputs.forEach(input => {
+    const qty = parseInt(input.value, 10) || 0;
+    if (qty > 0){
+      cart.push({
+        category: input.dataset.category,
+        size: input.dataset.size,      // UI label (S/M/L...) or kids size
+        dbSize: input.dataset.dbsize,  // DB size (36/38/...)
+        quantity: qty,
+        action: currentAction
+      });
+      input.value = '0';
+      added++;
+    }
+  });
+
+  if (added === 0) alert('Please enter quantity for at least one size.');
+  updateCart();
+}
+
+function updateCart(){
+  const list = document.getElementById('cart-list');
+  const summary = document.getElementById('cart-summary');
+  const totalEl = document.getElementById('total-items');
+
+  list.innerHTML = '';
+
+  if (!cart || cart.length === 0){
+    list.innerHTML = '<li style="text-align:center;color:rgba(100,116,139,.85);font-weight:900;padding:18px 0;border:1px dashed rgba(15,23,42,.16);background:rgba(255,255,255,.70);border-radius:16px">Cart is empty</li>';
+    summary.style.display = 'none';
+    return;
+  }
+
+  const totalQty = cart.reduce((s, x) => s + (x.quantity || 0), 0);
+  summary.style.display = 'block';
+  totalEl.textContent = totalQty;
+
+  cart.forEach((item, idx) => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div class="cart-item-info">
+        <strong>${item.action.toUpperCase()}</strong> - ${item.category.toUpperCase()}<br>
+        Size: <strong>${item.size}</strong> | Qty: <strong>${item.quantity}</strong>
+      </div>
+      <button class="remove-item" type="button" onclick="removeFromCart(${idx})">Remove</button>
+    `;
+    list.appendChild(li);
+  });
+}
+
+function removeFromCart(i){
+  if (isSubmitting) return;
+  cart.splice(i, 1);
+  updateCart();
+}
+
+async function submitCart(){
+  if (!currentAction){
+    alert('Please select IN or OUT mode first.');
+    return;
+  }
+  if (!cart || cart.length === 0){
+    alert('Cart is empty.');
+    return;
+  }
+  if (isSubmitting) return;
+
+  const submitBtn = document.getElementById('submit-btn');
+  const refreshBtn = document.getElementById('refresh-btn');
+
+  let location = '';
+  let reason = '';
+
+  if (currentAction === 'out'){
+    reason = document.getElementById('reason-select').value;
+    location = document.getElementById('location-select').value;
+
+    if (!reason){
+      alert('Please select a reason for stock out.');
+      return;
+    }
+    if (reason === 'Sent to Organization' && !location){
+      alert('Please select a destination location.');
+      return;
+    }
+  } else {
+    reason = 'Received from Supplier';
+  }
+
+  const totalQty = cart.reduce((s, x) => s + (x.quantity || 0), 0);
+
+  const confirmText =
+    currentAction === 'in'
+      ? `Receive ${totalQty} items into Warehouse?`
+      : (reason === 'Sent to Organization'
+          ? `Send ${totalQty} items from Warehouse to ${location}?`
+          : `Stock OUT ${totalQty} items from Warehouse?\nReason: ${reason}`);
+
+  if (!confirm(confirmText)) return;
+
+  isSubmitting = true;
+  submitBtn.disabled = true;
+  refreshBtn.disabled = true;
+  showLoading(true, 'Submitting to database...');
+
+  const items = cart.map(x => ({ ...x }));
+
+  try{
+    /* QUEUE mode (Warehouse -> Organization) */
+    if (currentAction === 'out' && reason === 'Sent to Organization'){
+      const queueItems = items.map(item => ({
+        category: item.category,
+        size: item.dbSize || item.size,
+        quantity: item.quantity
+      }));
+
+      // FIXED: correct RPC name + snake_case parameter names
+      const { data: transferId, error } = await client.rpc('create_stock_transfer', {
+        p_from_org: ORG,
+        p_to_org: location,
+        p_items: queueItems,
+        p_reason: `Sent to Organization Queue - ${location}`,
+        p_created_by_name: currentUser?.name || 'Warehouse Manager',
+        p_created_by_username: currentUser?.username || 'warehouse'
+      });
+
+      if (error) throw error;
+
+      cart = [];
+      updateCart();
+      document.getElementById('location-select').value = '';
+      document.getElementById('reason-select').value = '';
+      await manualRefresh(false);
+
+      alert(`Queue created! Request #${transferId} sent to ${location}.`);
+      return;
+    }
+
+    /* Normal IN / OUT flow (direct stock update) */
+    for (const item of items){
+      const dbSize = item.dbSize || item.size;
+
+      if (item.action === 'in'){
+        const { error } = await client.rpc('upsert_warehouse_stock', {
+          p_organization: ORG,
+          p_category: item.category,
+          p_size: dbSize,
+          p_quantity: item.quantity,
+          p_type: 'in',
+          p_user_name: currentUser?.name || 'unknown',
+          p_reason: reason
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await client.rpc('upsert_warehouse_stock', {
+          p_organization: ORG,
+          p_category: item.category,
+          p_size: dbSize,
+          p_quantity: -item.quantity,
+          p_type: 'out',
+          p_user_name: currentUser?.name || 'unknown',
+          p_reason: reason
+        });
+        if (error) throw error;
+      }
+    }
+
+    cart = [];
+    updateCart();
+    document.getElementById('location-select').value = '';
+    document.getElementById('reason-select').value = '';
+    await manualRefresh(false);
+
+    alert(`Success! Processed total qty ${totalQty}.`);
+  } catch (err){
+    console.error(err);
+    alert('Error: ' + (err?.message || 'Failed'));
+  } finally {
+    showLoading(false);
+    isSubmitting = false;
+    refreshBtn.disabled = false;
+    submitBtn.disabled = !currentAction;
+  }
+}
+
+/* Initial state before login */
+updateCart();
+setModeUI(null);
+</script>
+</body>
+</html>
